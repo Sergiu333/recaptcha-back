@@ -30,15 +30,16 @@ app.post('/verify', async (req, res) => {
 
         const data = await response.json();
 
-        if (data.success && data.score >= 0.5) {
-            res.json({ success: true, score: data.score, message: 'Captcha valid!' });
+        if (data.success) {
+            res.json({ success: true, message: 'Captcha verificat cu succes!' });
         } else {
-            res.status(400).json({ success: false, score: data.score, message: 'Captcha invalid sau scor mic' });
+            res.status(400).json({ success: false, message: 'Captcha invalid!' });
         }
     } catch (error) {
         res.status(500).json({ success: false, message: 'Eroare server', error: error.message });
     }
 });
+
 
 
 // Expune aplicația Express ca handler pentru Vercel
