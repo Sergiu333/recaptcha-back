@@ -41,29 +41,45 @@ app.use(express.urlencoded({ extended: true }));
 // });
 
 
-app.post('/verify', async (req, res) => {
-    const token = req.body['g-recaptcha-response'];
+// app.post('/verify', async (req, res) => {
+//     const token = req.body['g-recaptcha-response'];
 
-    if (!token) {
-        return res.status(400).json({ success: false, message: 'Captcha token lipseste' });
-    }
+//     if (!token) {
+//         return res.status(400).json({ success: false, message: 'Captcha token lipseste' });
+//     }
 
-    try {
-        const response = await fetch(`https://www.google.com/recaptcha/api/siteverify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `secret=${SECRET_KEY}&response=${token}`
-        });
+//     try {
+//         const response = await fetch(`https://www.google.com/recaptcha/api/siteverify`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+//             body: `secret=${SECRET_KEY}&response=${token}`
+//         });
 
-        const data = await response.json();
+//         const data = await response.json();
 
-        if (data.success) {
-            res.json({ success: true, message: 'Captcha verificat cu succes!' });
-        } else {
-            res.status(400).json({ success: false, message: 'Captcha invalid!' });
-        }
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Eroare server', error: error.message });
+//         if (data.success) {
+//             res.json({ success: true, message: 'Captcha verificat cu succes!' });
+//         } else {
+//             res.status(400).json({ success: false, message: 'Captcha invalid!' });
+//         }
+//     } catch (error) {
+//         res.status(500).json({ success: false, message: 'Eroare server', error: error.message });
+//     }
+// });
+
+
+app.post('/verify', (req, res) => {
+    const selectedItems = req.body.selectedItems;
+
+    // Lista de răspunsuri corecte
+    const correctAnswers = ['car1', 'car3'];
+
+    const isValid = selectedItems.every(item => correctAnswers.includes(item));
+
+    if (isValid) {
+        return res.json({ success: true, message: 'Verificare reușită!' });
+    } else {
+        return res.status(400).json({ success: false, message: 'Selecții incorecte!' });
     }
 });
 
