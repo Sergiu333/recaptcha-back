@@ -2,14 +2,15 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.js",  // Aici trebuie să pui fișierul principal (în cazul tău, index.js sau server.js)
+      "src": "index.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "index.js"  // Rotează toate cererile către serverul Express
+      "src": "/verify",
+      "methods": ["POST"],
+      "dest": "/index.js"
     }
   ]
 }
