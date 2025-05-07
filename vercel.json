@@ -8,8 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/verify",
-      "methods": ["POST"],
+      "src": "/(.*)",
       "dest": "/index.js"
     }
   ]
