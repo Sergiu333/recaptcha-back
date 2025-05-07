@@ -3,12 +3,12 @@ import fetch from 'node-fetch';
 import cors from 'cors';  // Importă pachetul CORS
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Cheile tale
 const SECRET_KEY = '6Lcm_TArAAAAANZKNfs5CD44OBF6eZqZmp1b0g_f';
 
-// Permite CORS pentru toate originile (sau specifică unul anume)
+// Permite CORS pentru toate originile
 app.use(cors());  // Aici activăm CORS pentru toate originile
 
 app.use(express.json());
@@ -40,6 +40,5 @@ app.post('/verify', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server pornit pe http://localhost:${PORT}`);
-});
+// Expune aplicația Express ca handler pentru Vercel
+export default app;
