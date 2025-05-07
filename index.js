@@ -29,16 +29,18 @@ app.post('/verify', async (req, res) => {
         });
 
         const data = await response.json();
+        console.log(data);  // Verifică ce răspuns primești de la API-ul Google
 
-        if (data.success) {
-            res.json({ success: true, message: 'Captcha verificat cu succes!' });
-        } else {
-            res.status(400).json({ success: false, message: 'Captcha invalid!' });
+        if (!data.success) {
+            return res.status(400).json({ success: false, message: 'Captcha invalid', errorCodes: data['error-codes'] });
         }
+
+        res.json({ success: true, message: 'Captcha verificat cu succes!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Eroare server', error: error.message });
     }
 });
+
 
 
 
