@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Cheile tale
-const SECRET_KEY = '6Lf2IDErAAAAAHVCnzaokiqILuVuDaGDcRpSDpTP';
+const SECRET_KEY = '6Lcm_TArAAAAANZKNfs5CD44OBF6eZqZmp1b0g_f';
 
 // Permite CORS pentru toate originile
 app.use(cors());  // Aici activăm CORS pentru toate originile
