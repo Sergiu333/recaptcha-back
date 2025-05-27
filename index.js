@@ -56,10 +56,6 @@
 
 
 
-
-
-
-
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -74,13 +70,8 @@ const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
 // Security headers
 app.use(helmet());
 
-// Stricter CORS configuration
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  methods: ['POST'],
-  allowedHeaders: ['Content-Type', 'User-Agent'],
-  maxAge: 86400 // 24 hours
-}));
+// Allow CORS from anywhere
+app.use(cors());
 
 // IP-based blocking
 const blockedIPs = new Map();
@@ -281,3 +272,4 @@ setInterval(() => {
 app.listen(PORT, () => {
   console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
 });
+
