@@ -73,7 +73,6 @@
 
 
 
-
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -81,8 +80,12 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Înlocuiește cu cheia ta secretă de la Google
+// Cheia ta secretă de la Google reCAPTCHA v3
 const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
+
+// Scor minim acceptat
+const MIN_SCORE = 0.5;
+const EXPECTED_ACTION = 'submit';
 
 app.use(cors());
 app.use(express.json());
@@ -102,7 +105,9 @@ app.post('/verify', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log('Google reCAPTCHA response:', data); // Debugging
 
+    // Validare completă
     if (!data.success) {
       return res.status(400).json({
         success: false,
@@ -111,13 +116,39 @@ app.post('/verify', async (req, res) => {
       });
     }
 
-    // Trimite scorul înapoi (v3 oferă un scor între 0.0 și 1.0)
-    res.json({ success: true, score: data.score });
+    if (data.action !== EXPECTED_ACTION) {
+      return res.status(400).json({
+        success: false,
+        message: `Acțiune necorespunzătoare. Expected: "${EXPECTED_ACTION}", got: "${data.action}"`
+      });
+    }
+
+    if (data.score < MIN_SCORE) {
+      return res.status(403).json({
+        success: false,
+        message: 'Scor prea mic. Posibil bot.',
+        score: data.score
+      });
+    }
+
+    // Totul este ok
+    res.json({
+      success: true,
+      message: 'Token valid și scor acceptabil',
+      score: data.score,
+      action: data.action
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Eroare server', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Eroare server',
+      error: error.message
+    });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
 });
+
