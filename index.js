@@ -63,22 +63,44 @@
 
 
 
+import express from 'express';
+import fetch from 'node-fetch';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
+const app = express();
+const PORT = process.env.PORT || 3000;
 
+// Cheia secretă reCAPTCHA v3 (nu o împărtăși public)
+const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
+
+// Limitare cereri - max 3 pe minut per IP
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: {
+    success: false,
+    message: 'Prea multe cereri. Încearcă din nou mai târziu.'
+  }
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use('/verify', limiter); // aplică limitarea doar pe ruta /verify
+
+const MIN_SCORE = 0.7;
+const EXPECTED_ACTION = 'submit';
 
 app.post('/verify', async (req, res) => {
   const token = req.body.token;
   const userAgent = req.headers['user-agent'] || '';
-  // În caz că sunt mai mulți IP-uri în x-forwarded-for, luăm primul
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-  console.log(`[${new Date().toISOString()}] --- Începe verificare reCAPTCHA ---`);
-  console.log(`IP: ${ip}`);
+  console.log(`[${new Date().toISOString()}] Verificare de la IP: ${ip}`);
   console.log(`User-Agent: ${userAgent}`);
-  console.log(`Token primit: ${token ? 'Da' : 'Nu'}`);
 
   if (/HeadlessChrome|puppeteer|phantom|curl|python|axios|Go-http/i.test(userAgent)) {
-    console.log(`Respins: Browser suspect detectat.`);
     return res.status(403).json({
       success: false,
       message: 'Browser suspect detectat (probabil bot)',
@@ -87,7 +109,6 @@ app.post('/verify', async (req, res) => {
   }
 
   if (!token) {
-    console.log(`Respins: Token lipsă.`);
     return res.status(400).json({ success: false, message: 'Token reCAPTCHA lipsă' });
   }
 
@@ -99,10 +120,9 @@ app.post('/verify', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log('Răspuns Google complet:', JSON.stringify(data, null, 2));
+    console.log('Răspuns Google:', data);
 
     if (!data.success) {
-      console.log(`Respins: Token invalid, erori: ${data['error-codes']}`);
       return res.status(400).json({
         success: false,
         message: 'Token invalid',
@@ -111,7 +131,6 @@ app.post('/verify', async (req, res) => {
     }
 
     if (data.action !== EXPECTED_ACTION) {
-      console.log(`Respins: Acțiune greșită. Expected: "${EXPECTED_ACTION}", primit: "${data.action}"`);
       return res.status(400).json({
         success: false,
         message: `Acțiune greșită. Expected: "${EXPECTED_ACTION}", primit: "${data.action}"`,
@@ -120,7 +139,6 @@ app.post('/verify', async (req, res) => {
     }
 
     if (data.score < MIN_SCORE) {
-      console.log(`Respins: Scor prea mic (${data.score}). Posibil bot.`);
       return res.status(403).json({
         success: false,
         message: 'Scor prea mic. Posibil bot.',
@@ -128,22 +146,23 @@ app.post('/verify', async (req, res) => {
       });
     }
 
-    console.log(`Acceptat: Token valid, scor ${data.score}, acțiune "${data.action}"`);
+    // Totul e ok
     res.json({
       success: true,
       message: 'Token valid și scor acceptabil',
       score: data.score,
-      action: data.action,
-      challenge_ts: data.challenge_ts,
-      hostname: data.hostname
+      action: data.action
     });
 
   } catch (error) {
-    console.error(`Eroare la verificare reCAPTCHA: ${error.message}`);
     res.status(500).json({
       success: false,
       message: 'Eroare server',
       error: error.message
     });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
 });
