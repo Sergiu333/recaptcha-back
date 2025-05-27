@@ -69,29 +69,53 @@
 
 
 
-
-
-
-
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Cheia ta secretă de la Google reCAPTCHA v3
+// Cheia secretă reCAPTCHA v3 (nu partaja această cheie public)
 const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
 
-// Scor minim acceptat
-const MIN_SCORE = 0.5;
-const EXPECTED_ACTION = 'submit';
+// Configurare limitare acces (max 3 cereri / minut / IP)
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: {
+    success: false,
+    message: 'Prea multe cereri. Încearcă din nou mai târziu.'
+  }
+});
 
+// Configurare CORS și parser JSON
 app.use(cors());
 app.use(express.json());
+app.use('/verify', limiter); // aplicăm rate limiting DOAR pe ruta /verify
+
+// Scor minim acceptabil
+const MIN_SCORE = 0.7;
+const EXPECTED_ACTION = 'submit';
 
 app.post('/verify', async (req, res) => {
   const token = req.body.token;
+  const userAgent = req.headers['user-agent'] || '';
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  // Log pentru analiză
+  console.log(`[${new Date().toISOString()}] Verificare de la IP: ${ip}`);
+  console.log(`User-Agent: ${userAgent}`);
+
+  // Detectare browser/headless suspect
+  if (/HeadlessChrome|puppeteer|phantom|curl|python|axios|Go-http/i.test(userAgent)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Browser suspect detectat (probabil bot)',
+      score: null
+    });
+  }
 
   if (!token) {
     return res.status(400).json({ success: false, message: 'Token reCAPTCHA lipsă' });
@@ -105,9 +129,8 @@ app.post('/verify', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log('Google reCAPTCHA response:', data); // Debugging
+    console.log('Răspuns Google:', data);
 
-    // Validare completă
     if (!data.success) {
       return res.status(400).json({
         success: false,
@@ -119,7 +142,8 @@ app.post('/verify', async (req, res) => {
     if (data.action !== EXPECTED_ACTION) {
       return res.status(400).json({
         success: false,
-        message: `Acțiune necorespunzătoare. Expected: "${EXPECTED_ACTION}", got: "${data.action}"`
+        message: `Acțiune greșită. Expected: "${EXPECTED_ACTION}", primit: "${data.action}"`,
+        action: data.action
       });
     }
 
@@ -131,7 +155,7 @@ app.post('/verify', async (req, res) => {
       });
     }
 
-    // Totul este ok
+    // Totul e ok
     res.json({
       success: true,
       message: 'Token valid și scor acceptabil',
@@ -151,4 +175,3 @@ app.post('/verify', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
 });
-
