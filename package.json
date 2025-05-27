@@ -1,21 +1,31 @@
 {
-  "name": "recaptcha",
+  "name": "recaptcha-back",
   "version": "1.0.0",
-  "description": "",
+  "description": "Secure reCAPTCHA verification backend for payment forms",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "echo build",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "echo 'No build step required'",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "recaptcha",
+    "security",
+    "payment",
+    "verification"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "node-fetch": "^2.7.0",
-    "express-rate-limit": "^7.0.0"
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
   }
 }
