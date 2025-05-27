@@ -54,8 +54,6 @@
 
 
 
-
-
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -67,11 +65,23 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
 
-// Security headers
-app.use(helmet());
+// Security headers with some relaxed settings for reCAPTCHA
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" }
+}));
 
-// Allow CORS from anywhere
-app.use(cors());
+// Allow CORS from anywhere with specific options
+app.use(cors({
+  origin: '*',
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Increase payload limit
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // IP-based blocking
 const blockedIPs = new Map();
@@ -93,12 +103,11 @@ const limiter = rateLimit({
   }
 });
 
-app.use(express.json({ limit: '1kb' })); // Limit payload size
 app.use('/verify', limiter);
 
-const MIN_SCORE = 0.7; // Increased minimum score
+const MIN_SCORE = 0.7;
 const EXPECTED_ACTION = 'submit';
-const MAX_REQUEST_TIME = 10000; // 10 seconds
+const MAX_REQUEST_TIME = 10000;
 
 // Enhanced suspicious user agent detection
 function isSuspiciousUserAgent(ua) {
@@ -126,7 +135,7 @@ function isSuspiciousUserAgent(ua) {
 // Request timing check
 function isRequestTooFast(startTime) {
   const elapsed = Date.now() - startTime;
-  return elapsed < 1000; // Less than 1 second is suspicious
+  return elapsed < 1000;
 }
 
 // IP blocking check
@@ -147,16 +156,24 @@ function logSecurityEvent(event, details) {
   console.log(`[SECURITY][${timestamp}] ${event}:`, details);
 }
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Eroare server',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
+});
+
 app.post('/verify', async (req, res) => {
   const startTime = Date.now();
   const token = req.body.token;
   const userAgent = req.headers['user-agent'] || '';
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
-  // Security logging
   logSecurityEvent('Request received', { ip, userAgent });
 
-  // IP blocking check
   if (isIPBlocked(ip)) {
     logSecurityEvent('Blocked IP attempt', { ip });
     return res.status(403).json({
@@ -165,7 +182,6 @@ app.post('/verify', async (req, res) => {
     });
   }
 
-  // Request timing check
   if (isRequestTooFast(startTime)) {
     logSecurityEvent('Suspicious timing', { ip, elapsed: Date.now() - startTime });
     return res.status(403).json({
@@ -267,9 +283,8 @@ setInterval(() => {
       blockedIPs.delete(ip);
     }
   }
-}, 60 * 60 * 1000); // Cleanup every hour
+}, 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
 });
-
