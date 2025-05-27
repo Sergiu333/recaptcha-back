@@ -85,7 +85,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/verify', limiter);
 
-const MIN_SCORE = 0.7;
+const MIN_SCORE = 0.5;
 const EXPECTED_ACTION = 'submit';
 
 // Funcție pentru verificare user-agent foarte strictă
