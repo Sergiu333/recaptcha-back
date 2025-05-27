@@ -62,7 +62,6 @@
 
 
 
-
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -70,11 +69,9 @@ import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Cheia secretă reCAPTCHA v3 (nu o împărtăși public)
 const SECRET_KEY = '6Lddu0orAAAAAIanDcybJfILQlOLjTcLdDPcGTOX';
 
-// Limitare cereri - max 3 pe minut per IP
+// Limitare cereri stricte - max 3 cereri/minut/IP
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 3,
@@ -84,23 +81,39 @@ const limiter = rateLimit({
   }
 });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/verify', limiter); // aplică limitarea doar pe ruta /verify
+app.use('/verify', limiter);
 
 const MIN_SCORE = 0.7;
 const EXPECTED_ACTION = 'submit';
 
+// Funcție pentru verificare user-agent foarte strictă
+function isSuspiciousUserAgent(ua) {
+  const suspiciousPatterns = [
+    /HeadlessChrome/i,
+    /puppeteer/i,
+    /phantom/i,
+    /curl/i,
+    /python/i,
+    /axios/i,
+    /Go-http/i,
+    /bot/i,
+    /spider/i,
+    /crawl/i
+  ];
+  return suspiciousPatterns.some(p => p.test(ua));
+}
+
 app.post('/verify', async (req, res) => {
   const token = req.body.token;
   const userAgent = req.headers['user-agent'] || '';
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
-  console.log(`[${new Date().toISOString()}] Verificare de la IP: ${ip}`);
-  console.log(`User-Agent: ${userAgent}`);
+  console.log(`[${new Date().toISOString()}] IP: ${ip}, User-Agent: ${userAgent}`);
 
-  if (/HeadlessChrome|puppeteer|phantom|curl|python|axios|Go-http/i.test(userAgent)) {
+  if (isSuspiciousUserAgent(userAgent)) {
+    console.warn('Browser suspect detectat!');
     return res.status(403).json({
       success: false,
       message: 'Browser suspect detectat (probabil bot)',
@@ -108,15 +121,15 @@ app.post('/verify', async (req, res) => {
     });
   }
 
-  if (!token) {
-    return res.status(400).json({ success: false, message: 'Token reCAPTCHA lipsă' });
+  if (!token || token.length < 20) {
+    return res.status(400).json({ success: false, message: 'Token reCAPTCHA invalid sau lipsă' });
   }
 
   try {
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${SECRET_KEY}&response=${token}`
+      body: `secret=${SECRET_KEY}&response=${token}&remoteip=${ip}`
     });
 
     const data = await response.json();
@@ -125,7 +138,7 @@ app.post('/verify', async (req, res) => {
     if (!data.success) {
       return res.status(400).json({
         success: false,
-        message: 'Token invalid',
+        message: 'Token invalid sau expirat',
         'error-codes': data['error-codes']
       });
     }
@@ -133,31 +146,40 @@ app.post('/verify', async (req, res) => {
     if (data.action !== EXPECTED_ACTION) {
       return res.status(400).json({
         success: false,
-        message: `Acțiune greșită. Expected: "${EXPECTED_ACTION}", primit: "${data.action}"`,
+        message: `Acțiune invalidă. Expected: "${EXPECTED_ACTION}", primit: "${data.action}"`,
         action: data.action
       });
     }
 
+    if (typeof data.score !== 'number') {
+      return res.status(400).json({
+        success: false,
+        message: 'Scor invalid primit de la Google'
+      });
+    }
+
     if (data.score < MIN_SCORE) {
+      console.warn(`Scor prea mic: ${data.score} (posibil bot)`);
       return res.status(403).json({
         success: false,
-        message: 'Scor prea mic. Posibil bot.',
+        message: 'Scor prea mic. Acces refuzat.',
         score: data.score
       });
     }
 
-    // Totul e ok
+    // Totul ok
     res.json({
       success: true,
-      message: 'Token valid și scor acceptabil',
+      message: 'Token valid, scor acceptabil',
       score: data.score,
       action: data.action
     });
 
   } catch (error) {
+    console.error('Eroare la verificarea token-ului:', error);
     res.status(500).json({
       success: false,
-      message: 'Eroare server',
+      message: 'Eroare server la validarea token-ului',
       error: error.message
     });
   }
