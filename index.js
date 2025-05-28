@@ -1,15 +1,14 @@
 import express from 'express';
 import fetch from 'node-fetch';
-import cors from 'cors';  // Importă pachetul CORS
+import cors from 'cors';  
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Cheile tale
+
 const SECRET_KEY = '6Lf2IDErAAAAAHVCnzaokiqILuVuDaGDcRpSDpTP';
 
-// Permite CORS pentru toate originile
-app.use(cors());  // Aici activăm CORS pentru toate originile
+app.use(cors()); 
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -29,7 +28,7 @@ app.post('/verify', async (req, res) => {
         });
 
         const data = await response.json();
-        console.log(data);  // Verifică ce răspuns primești de la API-ul Google
+        console.log(data);  
 
         if (!data.success) {
             return res.status(400).json({ success: false, message: 'Captcha invalid', errorCodes: data['error-codes'] });
@@ -41,13 +40,6 @@ app.post('/verify', async (req, res) => {
     }
 });
 
-
-
-
-
-
-
-// Expune aplicația Express ca handler pentru Vercel
 export default app;
 
 
