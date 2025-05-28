@@ -1,13 +1,14 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';  
+import dotenv from 'dotenv';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+dotenv.config();
 
-
-const SECRET_KEY = '6Lf2IDErAAAAAHVCnzaokiqILuVuDaGDcRpSDpTP';
-
+// const SECRET_KEY = '6Lf2IDErAAAAAHVCnzaokiqILuVuDaGDcRpSDpTP';
+const SECRET_KEY = process.env.KEY; 
 app.use(cors()); 
 
 app.use(express.json());
